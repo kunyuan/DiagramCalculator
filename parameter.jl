@@ -1,26 +1,27 @@
 const GAMMA, SIGMA, POLAR, DELTA = 1, 2, 3, 4
+const Dim, Spin = 3, 2
 ################ Global parameters  ##################################
 const DiagType = POLAR
 # const DiagType = GAMMA
 const Order = 1
 const TotalBlock = 101
-const beta, Rs, Mass2, Lambda, maxK = 40.0, 1.0, 0.0, 1.0, 3.0
+const _Beta, Rs, m², λ² = 40.0, 1.0, 0.0, 1.0
 const ReWeight = [1.0, 0.1, 30.0, 1.0, 0.2, 0.1, 0.01, 0.01]
-const DIM, SPIN = 3, 2
 const BoldG, BoldVer = true, true
-const TauGridSize, KGridSize, AngGridSize = 128, 64, 64
 const PrintTime, SaveTime, ReWeightTime, MessageTime, CollectTime = 5, 10, 30, 10, 10
 
 ############  Derived parameters ###################################
-@assert DIM == 2 || DIM == 3 "DIM not implemented!"
+@assert Dim == 2 || Dim == 3 "Dim $Dim is not implemented!"
 @assert length(ReWeight) > Order + 1 "More ReWeight elements are needed!"
-const Kf = (DIM == 3) ? (9.0 * pi / 4.0)^(1.0 / 3) / Rs : sqrt(2.0) / Rs
-const Ef, Mu, Nf = (Kf^2, Kf^2, Kf / (4.0 * pi^2) * SPIN)
-const Beta = beta / Ef # rescale the temperature
-const MaxK = maxK * Kf
-const PhaseFactor = 1.0 / (2π)^DIM
+const Kf = Dim == 3 ? (9π / 4.0)^(1.0 / 3) / Rs : √2 / Rs
+const π²=π^2
+const Ef, μ, Nf = Kf^2, Kf^2, Spin * Kf / (4π²)
+const β = _Beta / Ef # rescale the temperature
+const PhaseFactor = 1.0 / (2π)^Dim
 const LastTidx = 2 * (Order + 2)
 const LastKidx = Order + 8
+const TauGridSize, FermiKGridSize, BoseKGridSize, AngGridSize = 128, 64, 64, 32
+const TauScale, FermiKScale, BoseKScale, MaxK=3Ef, 2/β^0.5, 2/β^0.5, 3Kf
 
 ############ Global External Variable Grid #########################
 ########### Other constants  #####################################
@@ -67,10 +68,10 @@ end
 # @inline dot(k, q) = Yeppp.dot(k, q)
 # @inline norm(k) = sqrt(dot(k, k))
 # @inline squaredNorm(k) = dot(k, k)
-@inline squaredNorm(k) = DIM == 3 ? k[1]^2 + k[2]^2 + k[3]^2 : k[1]^2 + k[2]^2
-@inline norm(k) = DIM == 3 ? sqrt(k[1]^2 + k[2]^2 + k[3]^2) : sqrt(k[1]^2 + k[2]^2)
+@inline squaredNorm(k) = Dim == 3 ? k[1]^2 + k[2]^2 + k[3]^2 : k[1]^2 + k[2]^2
+@inline norm(k) = Dim == 3 ? sqrt(k[1]^2 + k[2]^2 + k[3]^2) : sqrt(k[1]^2 + k[2]^2)
 @inline dot(k, q) =
-    DIM == 3 ? k[1] * q[1] + k[2] * q[2] + k[3] * q[3] : k[1] * q[1] + k[2] * q[2]
+    Dim == 3 ? k[1] * q[1] + k[2] * q[2] + k[3] * q[3] : k[1] * q[1] + k[2] * q[2]
 
 # module Weight
 # mutable struct VerWeight

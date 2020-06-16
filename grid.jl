@@ -27,9 +27,7 @@ function _grid(l::Coeff{T}, pos) where {T}
 end
 
 function _floor(l::Coeff{T}, x::T) where {T}
-    # @assert l.bound[0] <= x <= l.bound[1]
     pos = l.idx[1] + log((x - l.a) / l.b) / l.λ
-    # println(x, "=>", pos, "=>", _grid(l, pos), " diff=", x - _grid(l, pos))
     return Base.floor(Int, pos)
 end
 
