@@ -1,6 +1,6 @@
 module Green
 
-@inline function bareFermi(β::T, τ::T, Ek::T, scale::T = T(0.0)) where {T<:AbstractFloat}
+@inline function bareFermi(β::T, τ::T, ε::T, scale::T = T(0.0)) where {T<:AbstractFloat}
     if τ == T(0.0)
         τ = -prevfloat(T(0.0))
     end
@@ -9,10 +9,10 @@ module Green
         τ += β
     end
     @assert T(0.0) < τ <= β "τ must be (0.0, β]"
-    x = β * Ek / 2
+    x = β * ε / 2
     y = 2τ / β - 1
     if -T(100.0) < x < T(100.0)
-        G *= exp(-x * y) / 2 * cosh(x)
+        G *= exp(-x * y) / (2 * cosh(x))
     elseif x >= T(100.0)
         G *= exp(-x * (y + 1))
     else # x<=-100.0
