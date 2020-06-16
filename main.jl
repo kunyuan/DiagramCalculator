@@ -14,11 +14,9 @@ macro flush(content)
 end
 
 @flush printstyled(
-    "Rs: $Rs, kF: $Kf, EF: $Ef, β: $β, T/T_F: $(round(1.0 / β / Ef, digits = 4))\n",
+    "Rs: $Rs, kF: $Kf, EF: $Ef, β: $β, T/T_F: $(round(1.0 / β / Ef, digits = 4))\nSeed: $PID, TotalBlock: $TotalBlock\n",
     color = :green,
 )
-printstyled("Seed: $PID, TotalBlock: $TotalBlock\n", color = :green)
-flush(stdout)
 
 
 mutable struct State
