@@ -9,22 +9,23 @@ All sampling functions have three versions:
 # function setRand(_rand) 
 #     global const rand=_rand
 # end
+import Random:GLOBAL_RNG
 
-@inline newIdx(size) = rand(1:size), Float(size)
+@inline newIdx(size, rng=GLOBAL_RNG) = rand(rng, 1:size), Float(size)
 @inline delIdx(oldIdx, size) = Float(1.0) / size
-@inline shiftIdx(oldIdx, size) = rand(1:size), Float(1.0)
+@inline shiftIdx(oldIdx, size, rng=GLOBAL_RNG) = rand(rng, 1:size), Float(1.0)
 
-@inline newTau(β) = rand(Float) * β, β 
+@inline newTau(β, rng=GLOBAL_RNG) = rand(rng, Float) * β, β 
 @inline delTau(oldTau, β) = Float(1.0) / β
-@inline function shiftTau(oldTau, β, TauScale)
-    x = rand(Float)
+@inline function shiftTau(oldTau, β, TauScale=β/4.0, rng=GLOBAL_RNG)
+    x = rand(rng, Float)
     newTau::Float = 0.0
     if x < 1.0 / 3
-        newTau = oldTau + TauScale * (rand(Float) - Float(0.5))
+        newTau = oldTau + TauScale * (rand(rng, Float) - Float(0.5))
     elseif x < 2.0 / 3
         newTau = -oldTau
     else
-        newTau = rand(Float) * β
+        newTau = rand(rng, Float) * β
     end
 
     if newTau < Float(0.0)
@@ -35,7 +36,7 @@ All sampling functions have three versions:
     return newTau, Float(1.0)
 end
 
-@inline function newK!(newK, Kf, Kscale=Kf/2.0)::Float
+@inline function newK!(newK, Kf, Kscale=Kf/2.0, rng=GLOBAL_RNG)::Float
     ############ Simple Way ########################
     # for i in 1:DIM
     #     newK[i] = Kf * (rand(rng) - 0.5) * 2.0
@@ -43,12 +44,12 @@ end
     # return (2.0 * Kf)^DIM
     ################################################
 
-    Kamp = Kf + (2.0*rand() - 1.0) * Kscale
+    Kamp = Kf + (2.0*rand(rng) - 1.0) * Kscale
     (Kamp <= 0.0) && (return 0.0)
     # Kf-dK<Kamp<Kf+dK 
-    ϕ = 2π * rand(Float)
+    ϕ = 2π * rand(rng, Float)
     if length(newK) == 3
-        θ = π * rand(Float)
+        θ = π * rand(rng, Float)
         newK[1] = Kamp * cos(ϕ) * sin(θ)
         newK[2] = Kamp * sin(ϕ) * sin(θ)
         newK[3] = Kamp * cos(θ)
@@ -91,18 +92,18 @@ end
     end
 end
 
-@inline function shiftK!(oldK, newK, Kf, Kscale=Kf/3.0, λ=1.5)::Float
-    x = rand()
+@inline function shiftK!(oldK, newK, Kf, Kscale=Kf/3.0, λ=1.5, rng=GLOBAL_RNG)::Float
+    x = rand(rng)
     D=length(newK)
     if x < 1.0 / 3
         # dK = β > 1.0 ? Kf / β * 3.0 : Kf
         # newK .= oldK .+ (rand(rng, DIM) .- 0.5) .* dK
         for i in 1:D
-            newK[i] = oldK[i] + (rand() - 0.5) * Kscale
+            newK[i] = oldK[i] + (rand(rng) - 0.5) * Kscale
         end
         return 1.0
     elseif x < 2.0 / 3
-        ratio = 1.0 / λ + rand() * (λ - 1.0 / λ)
+        ratio = 1.0 / λ + rand(rng) * (λ - 1.0 / λ)
         newK .= oldK .* ratio
         if D==3
             return ratio
