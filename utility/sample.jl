@@ -1,6 +1,3 @@
-module Sample
-include("constant.jl")
-
 """
 All sampling functions have three versions:
 1. new* : function to create a new variable, return params: 1) the new variable (through return value or reference) 2) the proposal probability
@@ -118,5 +115,4 @@ end
         newK .= oldK .* (-1.0)
         return 1.0
     end
-end
 end
