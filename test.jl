@@ -1,2 +1,1 @@
-include("test/grid.jl")
-include("test/green.jl")
+include("utility/test.jl")

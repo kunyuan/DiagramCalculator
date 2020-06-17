@@ -1,62 +1,36 @@
+include("./utility/constant.jl")
 include("parameter.jl")
-include("grid.jl")
-# include("utility/utility.jl")
 
 using Random
 using StaticArrays
+using .Parameter
 
-PID=length(ARGS) >0 ? PID = parse(Int, ARGS[1]) : rand(100_000:999_999)
+PID = length(ARGS) > 0 ? PID = parse(Int, ARGS[1]) : rand(100_000:999_999)
 Random.seed!(PID) #initialize rand(), which is already global and by default using MersenneTwister
-@assert PID>=0 "RNG seed must be >=0"
+@assert PID >= 0 "RNG seed must be >=0"
 
-macro flush(content)
-    return :( $content )
-end
 
 @flush printstyled(
-    "Rs: $Rs, kF: $Kf, EF: $Ef, β: $β, T/T_F: $(round(1.0 / β / Ef, digits = 4))\nSeed: $PID, TotalBlock: $TotalBlock\n",
+    "Rs: $(para.Rs), kF: $(para.Kf), EF: $(para.Ef), β: $(para.β), T/T_F: $(round(1.0 / para.β / para.Ef, digits = 4))\nSeed: $PID, TotalBlock: $(mcPara.block)\n",
     color = :green,
 )
 
+# println(StaticArrays.SVector{3, Int})
+# println(Grid.LogGrid{Float, 64, 2})
 
-mutable struct State
-    PID::Int
-    step::Int
-    order::Int
-    scaleidx::Int
-    extTidx::Int
-    extKidx::Int
-    extAngidx::Int
-    absWeight::Float
-    T::MVector{LastTidx,Float}
-    K::SVector{LastKidx,Mom}
+# ############  Derived parameters ###################################
+# @assert Dim == 2 || Dim == 3 "Dim $Dim is not implemented!"
+# @assert length(ReWeight) > Order + 1 "More ReWeight elements are needed!"
+# const Kf = Dim == 3 ? (9π / 4.0)^(1.0 / 3) / Rs : √2 / Rs
+# const π² = π^2
+# const Ef, μ, Nf = Kf^2, Kf^2, Spin * Kf / (4π²)
+# const β = _Beta / Ef # rescale the temperature
+# const PhaseFactor = 1.0 / (2π)^Dim
+# const LastTidx = 2 * (Order + 2)
+# const LastKidx = Order + 8
+# const TauGridSize, FermiKGridSize, BoseKGridSize, AngGridSize = 128, 64, 64, 32
+# const TauScale, FermiKScale, BoseKScale, MaxK = 3Ef, 2 / β^0.5, 2 / β^0.5, 3Kf
 
-    function State(pid)
-        varT = @MVector [rand() .* β for i = 1:LastTidx]
-        varK = @SVector [rand(Mom) .* Kf for i = 1:LastKidx]
-        # varT = rand(rng, LastTidx) .* Beta
-        # varK = rand(rng, Mom, LastKidx) .* Kf
-        # rand!(rng, varK)
-        curr = new(pid, 0, 0, 1, 1, 1, 1, 0.0, varT, varK)
-        curr.T[LastTidx] = Grid.tau.grid[curr.extTidx]
-        curr.T[1] = 0.0
-
-        if DiagType == GAMMA
-            kL, kR = zero(Mom), zero(Mom)
-            kL[1] = Kf
-            curr.K[OUTL] .= curr.K[INL] .= kL
-            θ = acos(Grid.angle.grid[curr.extAngidx])
-            kR[1:2] .= [cos(θ), sin(θ)] .* Kf
-            curr.K[OUTR] .= curr.K[INR] .= kR
-        else
-            curr.K[1] .= zero(Mom)
-            curr.K[1][1] = Grid.K.grid[curr.extKidx]
-        end
-        return curr
-    end
-end
-
-const Curr = State(PID)
 
 # include("markov.jl")
 # Markov.init()
@@ -68,7 +42,7 @@ const Curr = State(PID)
 # for _order = 1:Order
 #     println("Benchmark Order $_order")
 #     @btime Markov.eval(o) samples = 1 evals = 100 setup = (o = $_order)
-    # println(sum(Markov.ver4[_order].weight))
+# println(sum(Markov.ver4[_order].weight))
 # end
 # exit()
 
