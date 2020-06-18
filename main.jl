@@ -9,8 +9,12 @@ Random.seed!(PID) #initialize rand(), which is already global and by default usi
 
 @flush println("Seed/PID: $PID")
 
-include("markov.jl")
-markov(Para(), MCPara(), grids)
+include("./parquetMC/oneBody/group.jl")
+using .OneBody
+include("./markov.jl")
+
+state, groups, updates=OneBody.init(para, grids)
+markov(state, groups, updates, 1000_000, Random.GLOBAL_RNG)
 
 
 # include("markov.jl")

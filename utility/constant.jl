@@ -1,17 +1,17 @@
 ############ Global External Variable Grid #########################
 ########### Other constants  #####################################
-const DiagType=[
-    :∅  #\emptyset, normalization diagram
-    :Σ  #self energy
-    :Π  #polarization
-    :Δ  #annormal self energy
-    :Γ₄ #4-point one-particle-irreducible vertex function
-    :Γi #irreduble Γ₄
-    :Γt #particle-hole Γ₄
-    :Γu #particle-hole-exchange Γ₄
-    :Γs #particle-particle Γ₄
-    :Γ₆ #6-point one-particle-irreducible vertex function
-]
+const Diag=(
+    ∅ =0,  #\emptyset, normalization diagram
+    Σ =1,  #self energy
+    Π =2,  #polarization
+    Δ =3,  #annormal self energy
+    Γ₄=4, #4-point one-particle-irreducible vertex function
+    Γi=5, #irreduble Γ₄
+    Γt=6, #particle-hole Γ₄
+    Γu=7, #particle-hole-exchange Γ₄
+    Γs=8, #particle-particle Γ₄
+    Γ₆=9 #6-point one-particle-irreducible vertex function
+)
 
 using StaticArrays: MVector
 const Float = Float64
