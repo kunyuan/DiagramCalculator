@@ -2,7 +2,7 @@ module OneBody
 
 # include("../../parameter.jl")
 include("../../utility/constant.jl")
-using QuantumStatistics
+using QuantumStatistics: Green, FastMath
 using StaticArrays
 const Mom=MVector{3, Float}
 
@@ -39,11 +39,15 @@ mutable struct State
     group::Group
     extTidx::Int
     extKidx::Int
+    lastT::Int
     absWeight::Float
     T::Array{Float, 1}
     K::Array{Mom, 1}
     # groups::Array{Group, 1}
 
+    """
+    MC Variable initialize here
+    """
     function State(para, group)
         LastT=para.order+2
         LastK=para.order+1
@@ -51,7 +55,7 @@ mutable struct State
         varT = [rand() .* β for i = 1:LastT]
         varK = [rand(Mom) .* Kf for i = 1:LastK]
 
-        curr = new(0, group, 1, 1, 0.0, varT, varK)
+        curr = new(0, group, 1, 1, LastT, 0.0, varT, varK)
         curr.T[1] = 0.0
         curr.K[1] .= zero(Mom)
         if group.diag!=:∅
@@ -59,16 +63,15 @@ mutable struct State
             curr.K[1][1] = group.KGrid[curr.extKidx]
         end
 
-        # curr.absWeight=evaluate(group, state)
+        curr.absWeight=abs(evaluate(para, curr))
         return curr
     end
 end
 
 """
-build Diagram groups and the State from the diagram list
+    init(parameter, grids)
 
-# Arguments
-- `diagList`: [(DiagType, order), ...]
+build Diagram groups and the State from the para.diagrams and other parameters
 """
 function init(para, grids)
     # maxOrder=maximum([d[2] for d in diagList])
@@ -80,8 +83,6 @@ function init(para, grids)
             push!(groups, Group(diag, o, grids))
         end
     end
-    # println(groups[1].tauGrid)
-    # println(groups[2].tauGrid)
     curr=State(para, groups[1])
     return curr, groups
 end
@@ -94,6 +95,20 @@ end
 #     function Polar(order, extTidx)
 #     end
 # end
+
+function evaluate(para, state)
+    group=state.group
+    if group.diag==:∅
+        return 1.0
+    elseif group.diag==:Π && group.order==1
+        tau=state.T[state.lastT]-state.T[1]
+        q, k=state.K[1], state.K[2]
+        gweight=bareFermi(para.β, tau, k, para.μ)*bareFermi(para.β, tau, k+q, para.μ)
+        return -para.spin*gweight/(2π)^para.dim
+    else
+        error("Note implemented")
+    end
+end
 
 include("update.jl")
 
