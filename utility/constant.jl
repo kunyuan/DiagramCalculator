@@ -35,4 +35,3 @@ const π² = π^2
 macro flush(content)
     return :($content)
 end
-

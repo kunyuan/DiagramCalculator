@@ -4,69 +4,74 @@ module OneBody
 include("../../utility/constant.jl")
 using QuantumStatistics: Green, FastMath
 using StaticArrays
-const Mom=MVector{3, Float}
+const Mom = Main.Mom
 include("./update.jl")
 
 struct Group
     diag::Int
     order::Int
-    innerK::Tuple{Int, Int}
-    innerT::Tuple{Int, Int}
-    statistics::Array{Float, 2} #two dimension array of (k, tau)
+    reweight::Float
+    innerK::Tuple{Int,Int}
+    innerT::Tuple{Int,Int}
+    statistics::Array{Float,2} # two dimension array of (k, tau)
     tauGrid::Any
     KGrid::Any
     function Group(diag, order, grids)
-        if diag==Diag.∅
-            @assert order==0 "∅ diagram must be order 0!"
-            return new(diag, 0, (1, 1), (1, 1), zeros(1,1).+1.0e-10, nothing, nothing)
+        if diag == Diag.∅
+            @assert order == 0 "∅ diagram must be order 0!"
+            tauGrid = nothing
+            KGrid = nothing
         else
-            @assert order>0 "$diag diagram must be order ≥ 0!"
-            tauGrid=grids.tau
-            if diag==Diag.Σ || diag==Diag.Δ
-                kGrid=grids.fermiK
-                return new(diag, 0, (1, 1), (1, 1), zeros(Float, tauGrid.size, kGrid.size), tauGrid, kGrid)
-            elseif diag==Diag.Π
-                kGrid=grids.boseK
-                return new(diag, 0, (1, 1), (1, 1), zeros(Float, tauGrid.size, kGrid.size), tauGrid, kGrid)
+            @assert order > 0 "$diag diagram must be order ≥ 0!"
+            tauGrid = grids.tau
+            if (diag == Diag.Σ) || (diag == Diag.Δ)
+                kGrid = grids.fermiK
+            elseif diag == Diag.Π
+                kGrid = grids.boseK
             else
                 error("$diag diagram is not an implemented one-body observable!")
             end
         end
+
+        return new(diag, 0, 1.0, (1, 1), (1, 1), zeros(Float, tauGrid.size, kGrid.size), tauGrid, kGrid)
     end
 end
 
+"""
+two groups are equal if and only if the diagram and the order are the same
+"""
+Base.:=(x::Group, y::Group) = (x.diag == y.diag && x.order == y.order)
+
 mutable struct State
-    step::Int
     group::Group
     extTidx::Int
     extKidx::Int
-    lastT::Int
-    absWeight::Float
-    T::Array{Float, 1}
-    K::Array{Mom, 1}
+    absweight::Float
+    T::Array{Float,1}
+    K::Array{Mom,1}
+    propose::Dict{Symbol,Float} #
+    accept::Dict{Symbol,Float}
+    visited::Dict{Group,Float}
     # groups::Array{Group, 1}
 
     """
     MC Variable initialize here
     """
-    function State(para, group)
-        LastT=para.order+2
-        LastK=para.order+1
-        β, Kf=para.β, para.Kf
-        varT = [rand() .* β for i = 1:LastT]
-        varK = [rand(Mom) .* Kf for i = 1:LastK]
+    function State(para, groups, updates)
+        LastT = para.order + 2
+        LastK = para.order + 1
+        varT = rand(LastT) * para.β
+        varK = [rand(Mom) * para.Kf for i = 1:LastK]
 
-        curr = new(0, group, 1, 1, LastT, 0.0, varT, varK)
-        curr.T[1] = 0.0
-        curr.K[1] .= zero(Mom)
-        if group.diag!=Diag.∅
-            curr.T[LastT] = group.tauGrid[curr.extTidx]
-            curr.K[1][1] = group.KGrid[curr.extKidx]
-        end
+        curr = groups[1]
+        varT[1] = 0.0
+        varT[LastT] = curr.tauGrid[curr.extTidx]
+        varK[1] = zero(Mom)
+        varK[1][1] = curr.KGrid[curr.extKidx]
 
-        curr.absWeight=abs(evaluate(para, curr))
-        println(typeof(curr.K))
-        return curr
+        state = new(0, curr, 1, 1, 0.0, LastT, varT, varK)
+        state.absweight = abs(evaluate(para, state))
+        return state
     end
 end
 
@@ -77,44 +82,39 @@ build Diagram groups and the State from the para.diagrams and other parameters
 """
 function init(para, grids)
     # maxOrder=maximum([d[2] for d in diagList])
-    lastT=para.order+1
-    groups=[Group(Diag.∅, 0, grids), ]
+    lastT = para.order + 1
+    groups = [Group(Diag.∅, 0, grids), ]
 
     for o in 1:para.order
         for diag in para.diagrams
             push!(groups, Group(diag, o, grids))
         end
     end
-    curr=State(para, groups[1])
-    return curr, groups, (propGroup, rejectGroup)
+    state = State(para, groups)
+    return state, groups, (propGroup, rejectGroup)
 end
 
-# function measure(group, factor)
-    # group.data[0]+=1.0*factor;
-# end
-
-# struct Polar<:OneBody
-#     function Polar(order, extTidx)
-#     end
-# end
-
 function evaluate(para, state)
-    group=state.group
-    if group.diag==Diag.∅
+    group = state.group
+    if group.diag == Diag.∅
         return 1.0
-    elseif group.diag==Diag.Π && group.order==1
-        tau=state.T[state.lastT]-state.T[1]
-        q, k=state.K[1], state.K[2]
-        gweight=bareFermi(para.β, tau, k, para.μ)*bareFermi(para.β, tau, k+q, para.μ)
-        return -para.spin*gweight/(2π)^para.dim
+    elseif group.diag == Diag.Π
+        if group.order == 1
+            tau = state.T[state.lastT] - state.T[1]
+            q, k = state.K[1], state.K[2]
+            gweight = bareFermi(para.β, tau, k, para.μ) * bareFermi(para.β, tau, k + q, para.μ)
+            return -para.spin * gweight / (2π)^para.dim
+        else
+            error("Not implemented")
+        end
     else
-        error("Note implemented")
+        error("Not implemented")
     end
 end
 
 function measure(para, state)
-    group=state.group
-    if group.diag==Diag.∅
+    group = state.group
+    if group.diag == Diag.∅
     else
     end
 end
