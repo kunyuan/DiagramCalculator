@@ -10,20 +10,24 @@ include("./update.jl")
 struct Group
     diag::Int
     order::Int
+    neighbor::Array{Group,1} # define which groups are connected to the correct one
     reweight::Float
     innerK::Tuple{Int,Int}
     innerT::Tuple{Int,Int}
     statistics::Array{Float,2} # two dimension array of (k, tau)
+    ########### extra ################
     tauGrid::Any
     KGrid::Any
     function Group(diag, order, grids)
         if diag == Diag.∅
             @assert order == 0 "∅ diagram must be order 0!"
+            innerK, innerT = (2, 1), (2, 1) 
             tauGrid = nothing
             KGrid = nothing
         else
             @assert order > 0 "$diag diagram must be order ≥ 0!"
             tauGrid = grids.tau
+            innerK, innerT = (2, order + 1), (2, order) 
             if (diag == Diag.Σ) || (diag == Diag.Δ)
                 kGrid = grids.fermiK
             elseif diag == Diag.Π
@@ -33,7 +37,8 @@ struct Group
             end
         end
 
-        return new(diag, 0, 1.0, (1, 1), (1, 1), zeros(Float, tauGrid.size, kGrid.size), tauGrid, kGrid)
+        data = zeros(Flat, tauGrid.size, kGrid.size)
+        return new(diag, 0, [], 1.0, innerK, innerT, data, tauGrid, kGrid)
     end
 end
 
@@ -44,20 +49,20 @@ Base.:=(x::Group, y::Group) = (x.diag == y.diag && x.order == y.order)
 
 mutable struct State
     group::Group
-    extTidx::Int
-    extKidx::Int
     absweight::Float
     T::Array{Float,1}
     K::Array{Mom,1}
-    propose::Dict{Symbol,Float} #
+    propose::Dict{Symbol,Float}
     accept::Dict{Symbol,Float}
     visited::Dict{Group,Float}
-    # groups::Array{Group, 1}
+    #### extra #############
+    extTidx::Int
+    extKidx::Int
 
     """
     MC Variable initialize here
     """
-    function State(para, groups, updates)
+    function State(para, groups)
         LastT = para.order + 2
         LastK = para.order + 1
         varT = rand(LastT) * para.β
@@ -69,7 +74,7 @@ mutable struct State
         varK[1] = zero(Mom)
         varK[1][1] = curr.KGrid[curr.extKidx]
 
-        state = new(0, curr, 1, 1, 0.0, LastT, varT, varK)
+        state = new(0, curr, 0.0, LastT, varT, varK, {}, {}, {}, 1, 1)
         state.absweight = abs(evaluate(para, state))
         return state
     end
